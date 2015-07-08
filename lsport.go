@@ -30,7 +30,7 @@ package lsport
 /*
 // Use absolute paths here, relative paths are coming to go1.5 as ${SRCDIR} ?
 #cgo CFLAGS: -I/your/actual/gopath/src/github.com/kezl/lsport/libserialport/
-#cgo LDFLAGS: /your/actual/gopath/gocode/src/github.com/kezl/lsport/libserialport/.libs/libserialport.a
+#cgo LDFLAGS: /your/actual/gopath/src/github.com/kezl/lsport/libserialport/.libs/libserialport.a
 
 // define _GNU_SOURCE for asprintf
 #define _GNU_SOURCE
@@ -129,7 +129,7 @@ type Port *C.struct_sp_port
 // Conf a struct containing a *C.struct_sp_port Port, the old port configuration 
 // and the active port configuration (both of type *C.struct_sp_port_config).
 type Conf struct {
-	port      *C.struct_sp_port
+	Port      *C.struct_sp_port
 	oldConfig *C.struct_sp_port_config
 	newConfig *C.struct_sp_port_config
 }
@@ -158,10 +158,10 @@ func Init(s *Conf, name string) (int32, error) {
 	C.sp_new_config(&s.newConfig)
 	cp := C.CString(name)
 	defer C.free(unsafe.Pointer(cp))
-	result = C.sp_get_port_by_name(cp, &s.port)
+	result = C.sp_get_port_by_name(cp, &s.Port)
 	checkResult(result)
 	// Open before setting params
-	result = C.sp_open(s.port, SP_MODE_READ|SP_MODE_WRITE)
+	result = C.sp_open(s.Port, SP_MODE_READ|SP_MODE_WRITE)
 	return result, checkResult(result)
 }
 
@@ -172,19 +172,19 @@ func SetParams(s *Conf, baud int, bits int, stopbits int) (int32, error) {
 	C.sp_set_config_bits(s.newConfig, C.int(bits))
 	C.sp_set_config_parity(s.newConfig, SP_PARITY_NONE)
 	C.sp_set_config_stopbits(s.newConfig, C.int(stopbits))
-	result = C.sp_set_config(s.port, s.newConfig)
+	result = C.sp_set_config(s.Port, s.newConfig)
 	return result, checkResult(result)
 }
 
 // Close restores the port to how it was before initialisation, closes the port and
 // frees resources.
 func Close(s *Conf) {
-	C.sp_flush(s.port, SP_BUF_BOTH)
+	C.sp_flush(s.Port, SP_BUF_BOTH)
 	C.sp_free_config(s.newConfig)
-	C.sp_set_config(s.port, s.oldConfig)
+	C.sp_set_config(s.Port, s.oldConfig)
 	C.sp_free_config(s.oldConfig)
 
-	C.sp_close(s.port)
+	C.sp_close(s.Port)
 }
 
 // PortSlice returns a string slice of serial ports found on the system.
