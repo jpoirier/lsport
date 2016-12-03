@@ -81,6 +81,8 @@ const (
 
 func getError(err C.enum_sp_return) error {
 	switch err {
+	case C.SP_OK:
+		return nil
 	case C.SP_ERR_ARG:
 		return errors.New("Invalid arguments were passed to the function")
 	case C.SP_ERR_FAIL:
@@ -89,6 +91,11 @@ func getError(err C.enum_sp_return) error {
 		return errors.New("A memory allocation failed while executing the operation")
 	case C.SP_ERR_SUPP:
 		return errors.New("The requested operation is not supported by this system or device")
+	default:
+		if err > 0 {
+			return nil
+		}
+	}
 	return errors.New("Error unknown")
 }
 
@@ -100,10 +107,10 @@ func Open(port string) (*Term, error) {
 	if err := getError(C.sp_get_port_by_name(cp, &p)); err != nil {
 		return nil, err
 	}
-	if err := portConfig(p, 115000, 8, 1); err != nil {
+	if err := getError(C.sp_open(p, C.SP_MODE_READ_WRITE)); err != nil {
 		return nil, err
 	}
-	if err := getError(C.sp_open(p, C.SP_MODE_READ_WRITE)); err != nil {
+	if err := portConfig(p, 115200, 8, 1); err != nil {
 		return nil, err
 	}
 
@@ -124,12 +131,18 @@ func portConfig(p *C.struct_sp_port, baud int, bits int, stopbits int) error {
 	if err := getError(C.sp_set_stopbits(p, C.int(stopbits))); err != nil {
 		return err
 	}
+	if err := getError(C.sp_set_flowcontrol(p, C.SP_FLOWCONTROL_NONE)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Close closes the port.
 func (t *Term) Close() error {
-	return getError(C.sp_close(t.port))
+	err := getError(C.sp_close(t.port))
+	C.sp_free_port(t.port)
+	return err
 }
 
 // InputWaiting returns the number of bytes waiting in the input buffer.
