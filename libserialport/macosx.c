@@ -18,6 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include "libserialport.h"
 #include "libserialport_internal.h"
 
@@ -62,6 +63,17 @@ SP_PRIV enum sp_return get_port_details(struct sp_port *port)
 		DEBUG_FMT("Found port %s", path);
 
 		IORegistryEntryGetParentEntry(ioport, kIOServicePlane, &ioparent);
+		if ((cf_property=IORegistryEntrySearchCFProperty(ioparent,kIOServicePlane,
+		           CFSTR("IOClass"), kCFAllocatorDefault,
+		           kIORegistryIterateRecursively | kIORegistryIterateParents))) {
+			if (CFStringGetCString(cf_property, class, sizeof(class),
+			                       kCFStringEncodingASCII) &&
+			    strstr(class, "USB")) {
+				DEBUG("Found USB class device");
+				port->transport = SP_TRANSPORT_USB;
+			}
+			CFRelease(cf_property);
+		}
 		if ((cf_property=IORegistryEntrySearchCFProperty(ioparent,kIOServicePlane,
 		           CFSTR("IOProviderClass"), kCFAllocatorDefault,
 		           kIORegistryIterateRecursively | kIORegistryIterateParents))) {

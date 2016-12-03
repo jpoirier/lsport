@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include "libserialport.h"
 #include "libserialport_internal.h"
 
@@ -388,12 +389,12 @@ SP_API void sp_free_port_list(struct sp_port **list)
 #ifdef _WIN32
 #define CHECK_PORT_HANDLE() do { \
 	if (port->hdl == INVALID_HANDLE_VALUE) \
-		RETURN_ERROR(SP_ERR_ARG, "Invalid port handle"); \
+		RETURN_ERROR(SP_ERR_ARG, "Port not open"); \
 } while (0)
 #else
 #define CHECK_PORT_HANDLE() do { \
 	if (port->fd < 0) \
-		RETURN_ERROR(SP_ERR_ARG, "Invalid port fd"); \
+		RETURN_ERROR(SP_ERR_ARG, "Port not open"); \
 } while (0)
 #endif
 #define CHECK_OPEN_PORT() do { \
@@ -763,8 +764,14 @@ SP_API enum sp_return sp_blocking_write(struct sp_port *port, const void *buf,
 		RETURN_INT(count);
 	} else if (GetLastError() == ERROR_IO_PENDING) {
 		DEBUG("Waiting for write to complete");
-		if (GetOverlappedResult(port->hdl, &port->write_ovl, &bytes_written, TRUE) == 0)
-			RETURN_FAIL("GetOverlappedResult() failed");
+		if (GetOverlappedResult(port->hdl, &port->write_ovl, &bytes_written, TRUE) == 0) {
+			if (GetLastError() == ERROR_SEM_TIMEOUT) {
+				DEBUG("Write timed out");
+				RETURN_INT(0);
+			} else {
+				RETURN_FAIL("GetOverlappedResult() failed");
+			}
+		}
 		DEBUG_FMT("Write completed, %d/%d bytes written", bytes_written, count);
 		RETURN_INT(bytes_written);
 	} else {
@@ -1111,9 +1118,8 @@ SP_API enum sp_return sp_blocking_read_next(struct sp_port *port, void *buf,
 	/* Loop until we have at least one byte, or timeout is reached. */
 	while (bytes_read == 0) {
 		/* Start read. */
-		if (ReadFile(port->hdl, buf, count, NULL, &port->read_ovl)) {
+		if (ReadFile(port->hdl, buf, count, &bytes_read, &port->read_ovl)) {
 			DEBUG("Read completed immediately");
-			bytes_read = count;
 		} else if (GetLastError() == ERROR_IO_PENDING) {
 			DEBUG("Waiting for read to complete");
 			if (GetOverlappedResult(port->hdl, &port->read_ovl, &bytes_read, TRUE) == 0)
@@ -1233,10 +1239,11 @@ SP_API enum sp_return sp_nonblocking_read(struct sp_port *port, void *buf,
 
 	/* Do read. */
 	if (ReadFile(port->hdl, buf, count, NULL, &port->read_ovl) == 0)
-		RETURN_FAIL("ReadFile() failed");
+		if (GetLastError() != ERROR_IO_PENDING)
+			RETURN_FAIL("ReadFile() failed");
 
 	/* Get number of bytes read. */
-	if (GetOverlappedResult(port->hdl, &port->read_ovl, &bytes_read, TRUE) == 0)
+	if (GetOverlappedResult(port->hdl, &port->read_ovl, &bytes_read, FALSE) == 0)
 		RETURN_FAIL("GetOverlappedResult() failed");
 
 	TRY(restart_wait_if_needed(port, bytes_read));
@@ -1420,7 +1427,9 @@ SP_API enum sp_return sp_wait(struct sp_event_set *event_set,
 	RETURN_OK();
 #else
 	struct timeval start, delta, now, end = {0, 0};
-	int started = 0;
+	const struct timeval max_delta = {
+		(INT_MAX / 1000), (INT_MAX % 1000) * 1000};
+	int started = 0, timeout_overflow = 0;
 	int result, timeout_remaining_ms;
 	struct pollfd *pollfds;
 	unsigned int i;
@@ -1460,7 +1469,8 @@ SP_API enum sp_return sp_wait(struct sp_event_set *event_set,
 		if (!timeout_ms) {
 			timeout_remaining_ms = -1;
 		} else if (!started) {
-			timeout_remaining_ms = timeout_ms;
+			timeout_overflow = (timeout_ms > INT_MAX);
+			timeout_remaining_ms = timeout_overflow ? INT_MAX : timeout_ms;
 		} else {
 			gettimeofday(&now, NULL);
 			if (timercmp(&now, &end, >)) {
@@ -1468,6 +1478,8 @@ SP_API enum sp_return sp_wait(struct sp_event_set *event_set,
 				break;
 			}
 			timersub(&end, &now, &delta);
+			if ((timeout_overflow = timercmp(&delta, &max_delta, >)))
+				delta = max_delta;
 			timeout_remaining_ms = delta.tv_sec * 1000 + delta.tv_usec / 1000;
 		}
 
@@ -1484,7 +1496,8 @@ SP_API enum sp_return sp_wait(struct sp_event_set *event_set,
 			}
 		} else if (result == 0) {
 			DEBUG("poll() timed out");
-			break;
+			if (!timeout_overflow)
+				break;
 		} else {
 			DEBUG("poll() completed");
 			break;
