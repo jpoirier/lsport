@@ -81,8 +81,6 @@ const (
 
 func getError(err C.enum_sp_return) error {
 	switch err {
-	case C.SP_OK:
-		return nil
 	case C.SP_ERR_ARG:
 		return errors.New("Invalid arguments were passed to the function")
 	case C.SP_ERR_FAIL:
@@ -91,7 +89,6 @@ func getError(err C.enum_sp_return) error {
 		return errors.New("A memory allocation failed while executing the operation")
 	case C.SP_ERR_SUPP:
 		return errors.New("The requested operation is not supported by this system or device")
-	}
 	return errors.New("Error unknown")
 }
 
@@ -149,14 +146,16 @@ func (t *Term) OutputWaiting() (int32, error) {
 
 // BlockingRead reads bytes from the serial port, blocking until complete.
 // timeout in milliseconds, or zero to wait indefinitely.
-func (t *Term) BlockingRead(rxBuf []byte, timeout uint) error {
-	return getError(C.sp_blocking_read(t.port, (unsafe.Pointer(&rxBuf[0])), C.size_t(len(rxBuf)), C.uint(timeout)))
+func (t *Term) BlockingRead(rxBuf []byte, timeout uint) (int, error) {
+	r := C.sp_blocking_read(t.port, (unsafe.Pointer(&rxBuf[0])), C.size_t(len(rxBuf)), C.uint(timeout))
+	return int(r), getError(r)
 }
 
 // BlockingWrite writes bytes to the serial port, blocking until complete.
 // timeout in milliseconds, or zero to wait indefinitely.
-func (t *Term) BlockingWrite(txBuf []byte, timeout uint) error {
-	return getError(C.sp_blocking_write(t.port, (unsafe.Pointer(&txBuf[0])), C.size_t(len(txBuf)), C.uint(timeout)))
+func (t *Term) BlockingWrite(txBuf []byte, timeout uint) (int, error) {
+	r := C.sp_blocking_write(t.port, (unsafe.Pointer(&txBuf[0])), C.size_t(len(txBuf)), C.uint(timeout))
+	return int(r), getError(r)
 }
 
 // Flush flushes serial port buffers,
@@ -171,11 +170,13 @@ func (t *Term) Drain() error {
 }
 
 // Read reads bytes from the serial port, without blocking.
-func (t *Term) Read(rxBuf []byte) error {
-	return getError(C.sp_nonblocking_read(t.port, (unsafe.Pointer(&rxBuf[0])), C.size_t(len(rxBuf))))
+func (t *Term) Read(rxBuf []byte) (int, error) {
+	r := C.sp_nonblocking_read(t.port, (unsafe.Pointer(&rxBuf[0])), C.size_t(len(rxBuf)))
+	return int(r), getError(r)
 }
 
 // Write writes bytes to the serial port, without blocking.
-func (t *Term) Write(txBuf []byte) error {
-	return getError(C.sp_nonblocking_write(t.port, (unsafe.Pointer(&txBuf[0])), C.size_t(len(txBuf))))
+func (t *Term) Write(txBuf []byte) (int, error) {
+	r := C.sp_nonblocking_write(t.port, (unsafe.Pointer(&txBuf[0])), C.size_t(len(txBuf)))
+	return int(r), getError(r)
 }
