@@ -10,26 +10,26 @@
 // Using go get is (I think) impossible at the moment, at least in a cross platform
 // way, as libserialport must be configured on the target system. So instead you
 // should proceed as follows
-//  git clone http://github.com/kezl/lsport
+//  git clone http://github.com/jpoirier/lsport
 // into the src directory of your GOPATH. You'll then need to alter the #cgo CFLAGS
 // & #cgo LDFLAGS in lsport.go so they are absolute (automation of absolute paths
 // is coming to go1.5 as ${SRCDIR}) but for now edit /your/actual/gopath/ to whatever
 // it is:
-//  #cgo CFLAGS: -I/your/actual/gopath/src/github.com/kezl/lsport/libserialport/
-//  #cgo LDFLAGS: /your/actual/gopath/src/github.com/kezl/lsport/libserialport/.libs/libserialport.a
+//  -I/your/actual/gopath/src/github.com/jpoirier/lsport/libserialport/
+//  /your/actual/gopath/src/github.com/jpoirier/lsport/libserialport/.libs/libserialport.a
 // and then build libserialport with something like:
 //  cd libserialport
 //  ./autogen.sh
 //  ./configure
 //  make
 // before installing lsport with:
-//  go install github.com/kezl/lsport
+//  go install github.com/jpoirier/lsport
 package lsport
 
 /*
 // Use absolute paths here, relative paths are coming to go1.5 as ${SRCDIR} ?
-#cgo CFLAGS: -I/your/actual/gopath/src/github.com/kezl/lsport/libserialport/
-#cgo LDFLAGS: /your/actual/gopath/src/github.com/kezl/lsport/libserialport/.libs/libserialport.a
+#cgo CFLAGS: -I/your/actual/gopath/src/github.com/jpoirier/lsport/libserialport/
+#cgo LDFLAGS: /your/actual/gopath/src/github.com/jpoirier/lsport/libserialport/.libs/libserialport.a
 
 // define _GNU_SOURCE for asprintf
 #define _GNU_SOURCE
