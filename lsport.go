@@ -27,9 +27,11 @@
 package lsport
 
 /*
-// Use absolute paths here, relative paths are coming to go1.5 as ${SRCDIR} ?
-#cgo CFLAGS: -I/your/actual/gopath/src/github.com/jpoirier/lsport/libserialport/
-#cgo LDFLAGS: /your/actual/gopath/src/github.com/jpoirier/lsport/libserialport/.libs/libserialport.a
+#cgo windows CFLAGS: -I${SRCDIR}/libs/windows_x86_32/
+#cgo windows LDFLAGS: ${SRCDIR}/libs/windows_x86_32/libserialport-0.dll
+
+#cgo linux CFLAGS: -I${SRCDIR}/libs/linux_x86_64/
+#cgo linux LDFLAGS: ${SRCDIR}//libs/linux_x86_64/libserialport.a
 
 // define _GNU_SOURCE for asprintf
 #define _GNU_SOURCE
