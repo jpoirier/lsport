@@ -102,7 +102,7 @@ func getError(err C.enum_sp_return) error {
 }
 
 // Open opens the specified serial port.
-func Open(port string) (*Term, error) {
+func Open(port string, baudrate int) (*Term, error) {
 	var p *C.struct_sp_port
 	cp := C.CString(port)
 	defer C.free(unsafe.Pointer(cp))
@@ -112,7 +112,7 @@ func Open(port string) (*Term, error) {
 	if err := getError(C.sp_open(p, C.SP_MODE_READ_WRITE)); err != nil {
 		return nil, err
 	}
-	if err := portConfig(p, 115200, 8, 1); err != nil {
+	if err := portConfig(p, baudrate, 8, 1); err != nil {
 		return nil, err
 	}
 
