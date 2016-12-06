@@ -140,6 +140,12 @@ func portConfig(p *C.struct_sp_port, baud int, bits int, stopbits int) error {
 	return nil
 }
 
+// SetBaudrate set the port's baud rate.
+func (t *Term) SetBaudrate(baud int) error {
+	return getError(C.sp_set_baudrate(t.port, C.int(baud)))
+}
+
+
 // Close closes the port.
 func (t *Term) Close() error {
 	err := getError(C.sp_close(t.port))
